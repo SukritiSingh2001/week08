@@ -108,7 +108,7 @@ jobs:
           docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/frontend:${IMAGE_TAG} ./frontend/
           docker push ${{ secrets.ACR_LOGIN_SERVER }}/frontend:${IMAGE_TAG}
 
-  # ---------------- DEPLOY TO AKS ----------------
+  # ---------------- DEPLOY TO AKS --------------
   deploy:
     runs-on: ubuntu-latest
     needs: build_push_images
