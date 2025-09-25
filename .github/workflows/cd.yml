@@ -11,7 +11,7 @@ env:
 
 jobs:
 
-  # ---------------- BACKEND CI: test ----------------
+  # ---------------- BACKEND CI: test --------------
   backend_ci:
     runs-on: ubuntu-latest
     services:
