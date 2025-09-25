@@ -7,8 +7,6 @@ on:
   pull_request:
 
 env:
-  ACR_NAME: ${{ secrets.ACR_NAME }}
-  ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
   IMAGE_TAG: ${{ github.sha }}-${{ github.run_id }}
 
 jobs:
@@ -87,13 +85,18 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      - name: Set ACR environment
+        run: |
+          echo "ACR_NAME=${{ secrets.ACR_NAME }}" >> $GITHUB_ENV
+          echo "ACR_LOGIN_SERVER=${{ secrets.ACR_LOGIN_SERVER }}" >> $GITHUB_ENV
+
       - name: Azure login
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Debug ENV
-        run: echo "ACR_NAME=$ACR_NAME | ACR_LOGIN_SERVER=$ACR_LOGIN_SERVER"
+        run: echo "ACR_NAME=$ACR_NAME | ACR_LOGIN_SERVER=$ACR_LOGIN_SERVER | IMAGE_TAG=$IMAGE_TAG"
 
       - name: Login to ACR
         run: az acr login -n $ACR_NAME
@@ -142,17 +145,24 @@ jobs:
           kubectl apply -f product-service.yaml
           kubectl apply -f order-service.yaml
 
-      - name: Deploy frontend
-        run: |
-          cd k8s
-          sed -i "s|_PRODUCT_API_URL_|http://product-service-w08e1:8000|g" frontend.yaml
-          sed -i "s|_ORDER_API_URL_|http://order-service-w08e1:8001|g" frontend.yaml
-          kubectl apply -f frontend.yaml
-
-      - name: Wait for backend services
+      - name: Wait for backend LoadBalancer IPs
         run: |
           for i in {1..60}; do
             PRODUCT_IP=$(kubectl get svc product-service-w08e1 -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
             ORDER_IP=$(kubectl get svc order-service-w08e1 -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
             if [[ -n "$PRODUCT_IP" && -n "$ORDER_IP" ]]; then
-              echo "Backend ser
+              echo "Backend services are ready!"
+              echo "PRODUCT_IP=$PRODUCT_IP" >> $GITHUB_ENV
+              echo "ORDER_IP=$ORDER_IP" >> $GITHUB_ENV
+              break
+            fi
+            sleep 5
+          done
+
+      - name: Deploy frontend
+        run: |
+          cd k8s
+          sed -i "s|_PRODUCT_API_URL_|$PRODUCT_IP|g" frontend.yaml
+          sed -i "s|_ORDER_API_URL_|$ORDER_IP|g" frontend.yaml
+          kubectl apply -f frontend.yaml
+          kubectl rollout status deployment/frontend
