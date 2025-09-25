@@ -102,4 +102,4 @@ jobs:
 
       - name: Build & push frontend image
         run: |
-          docker build -t ${{ secrets.ACR_LOGIN_SERVER }}
+          docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/frontend:${IMAGE_TAG} ./frontend/
